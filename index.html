@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة مفاتيح التفعيل</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- شاشة تسجيل الدخول -->
+    <div id="loginScreen" class="login-container">
+        <div class="login-box">
+            <div class="login-icon">🔐</div>
+            <h2>تسجيل الدخول</h2>
+            <p>الرجاء إدخال بيانات الدخول</p>
+            
+            <div class="input-group">
+                <input type="text" id="username" placeholder="اسم المستخدم" autocomplete="off">
+            </div>
+            <div class="input-group">
+                <input type="password" id="password" placeholder="كلمة المرور">
+            </div>
+            
+            <button onclick="checkLogin()">دخول</button>
+            
+            <div id="loginError" class="login-error"></div>
+        </div>
+    </div>
+
+    <!-- المحتوى الرئيسي (يظهر بعد تسجيل الدخول) -->
+    <div id="mainContent" class="container" style="display: none;">
+        <div class="header">
+            <div class="header-top">
+                <h1>🔑 نظام إدارة مفاتيح التفعيل</h1>
+                <button class="logout-btn" onclick="logout()">🚪 تسجيل خروج</button>
+            </div>
+            <p>إدارة كاملة للمفاتيح - تحكم تام مع خاصية النسخ</p>
+        </div>
+
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <h3>📝 إجمالي المفاتيح</h3>
+                <div class="number" id="totalKeys">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>🟢 المفاتيح النشطة</h3>
+                <div class="number" id="activeKeys">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>🔴 المفاتيح المتوقفة</h3>
+                <div class="number" id="blockedKeys">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>🟠 المنتهية</h3>
+                <div class="number" id="expiredKeys">0</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>➕ إضافة مفتاح جديد</h2>
+            <div class="form-group">
+                <input type="number" id="keyCount" placeholder="عدد المفاتيح" value="1" min="1" max="50">
+                <select id="keyStatus">
+                    <option value="active">نشط</option>
+                    <option value="blocked">موقوف</option>
+                </select>
+                <input type="datetime-local" id="expiryDate" placeholder="تاريخ الانتهاء">
+                <button onclick="generateKeys()">إنشاء مفاتيح</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>🔑 قائمة المفاتيح</h2>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="🔍 بحث عن مفتاح..." onkeyup="searchKeys()">
+            </div>
+            <div class="table-container">
+                <table id="keysTable">
+                    <thead>
+                        <tr>
+                            <th>المفتاح</th>
+                            <th>الحالة</th>
+                            <th>تاريخ الإنشاء</th>
+                            <th>تاريخ الانتهاء</th>
+                            <th>العمليات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="keysTableBody">
+                        <tr>
+                            <td colspan="5" style="text-align: center;">لا توجد مفاتيح. قم بإضافة مفاتيح جديدة</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
