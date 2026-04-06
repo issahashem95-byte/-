@@ -2,6 +2,10 @@
 const USERNAME = "admin";
 const PASSWORD = "admin123";
 
+// ⚠️ إعدادات التليجرام - استبدل هذه القيم ببياناتك الحقيقية ⚠️
+const TELEGRAM_BOT_TOKEN = "8795027796:AAGfBD6KX2wI3YVNyfj1DVS_MzcLNQZHAu8"; // ضع توكن البوت هنا
+const TELEGRAM_CHAT_ID = 8795027796"; // ضع معرف الدردشة هنا
+
 // التحقق من حالة تسجيل الدخول
 function checkLoginStatus() {
     const loggedIn = localStorage.getItem('loggedIn');
@@ -35,6 +39,7 @@ function checkLogin() {
         localStorage.setItem('loggedIn', 'true');
         errorDiv.textContent = '';
         showMainContent();
+        sendToTelegram('🔐 **تم تسجيل الدخول إلى لوحة التحكم**\n👤 المستخدم: ' + username);
     } else {
         errorDiv.textContent = '❌ اسم المستخدم أو كلمة المرور غير صحيحة';
     }
@@ -46,6 +51,63 @@ function logout() {
     showLoginScreen();
     document.getElementById('username').value = '';
     document.getElementById('password').value = '';
+    sendToTelegram('🚪 **تم تسجيل الخروج من لوحة التحكم**');
+}
+
+// إرسال رسالة إلى تليجرام
+function sendToTelegram(message) {
+    if (TELEGRAM_BOT_TOKEN === "YOUR_BOT_TOKEN_HERE" || TELEGRAM_CHAT_ID === "YOUR_CHAT_ID_HERE") {
+        console.log("⚠️ لم يتم إعداد التليجرام بعد. الرجاء إضافة التوكن والمعرف");
+        return;
+    }
+    
+    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            chat_id: TELEGRAM_CHAT_ID,
+            text: message,
+            parse_mode: 'Markdown'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.ok) {
+            console.log('✅ تم إرسال الإشعار إلى تليجرام');
+        } else {
+            console.log('❌ فشل الإرسال:', data.description);
+        }
+    })
+    .catch(error => {
+        console.log('❌ خطأ في الإرسال:', error);
+    });
+}
+
+// إرسال رسالة من المستخدم إلى المدير
+function sendMessageToAdmin() {
+    const userName = document.getElementById('userName').value;
+    const userMessage = document.getElementById('userMessage').value;
+    const resultDiv = document.getElementById('messageResult');
+    
+    if (!userName || !userMessage) {
+        resultDiv.innerHTML = '<span style="color: red;">❌ الرجاء ملء جميع الحقول</span>';
+        setTimeout(() => { resultDiv.innerHTML = ''; }, 3000);
+        return;
+    }
+    
+    const message = `📧 **رسالة جديدة من المستخدم**\n━━━━━━━━━━━━━━━━━\n👤 **الاسم:** ${userName}\n💬 **الرسالة:** ${userMessage}\n━━━━━━━━━━━━━━━━━\n⏰ ${new Date().toLocaleString('ar-SA')}`;
+    
+    sendToTelegram(message);
+    
+    resultDiv.innerHTML = '<span style="color: green;">✅ تم إرسال رسالتك بنجاح، سيتم الرد عليك قريباً</span>';
+    document.getElementById('userName').value = '';
+    document.getElementById('userMessage').value = '';
+    
+    setTimeout(() => { resultDiv.innerHTML = ''; }, 5000);
 }
 
 // تحميل البيانات من localStorage
@@ -82,11 +144,23 @@ function generateKey() {
     return key;
 }
 
+// إرسال إشعار إنشاء مفتاح إلى تليجرام
+function notifyKeyCreated(keyData) {
+    const statusEmoji = keyData.status === 'active' ? '✅' : '⛔';
+    const statusText = keyData.status === 'active' ? 'نشط' : 'موقوف';
+    const expiryText = keyData.expires_at !== 'غير محدد' ? `⏰ ينتهي في: ${keyData.expires_at}` : '♾️ لا ينتهي';
+    
+    const message = `🔑 **مفتاح جديد تم إنشاؤه** 🔑\n━━━━━━━━━━━━━━━━━\n📋 **المفتاح:** \`${keyData.key}\`\n📊 **الحالة:** ${statusEmoji} ${statusText}\n📅 **تاريخ الإنشاء:** ${keyData.created_at}\n${expiryText}\n━━━━━━━━━━━━━━━━━\n👤 تم الإنشاء بواسطة: المدير`;
+    
+    sendToTelegram(message);
+}
+
 // إنشاء مفاتيح جديدة
 function generateKeys() {
     const count = parseInt(document.getElementById('keyCount').value);
     const status = document.getElementById('keyStatus').value;
     const expiryDate = document.getElementById('expiryDate').value;
+    const createdKeys = [];
     
     for (let i = 0; i < count; i++) {
         const newKey = {
@@ -97,6 +171,10 @@ function generateKeys() {
             expires_at: expiryDate ? new Date(expiryDate).toLocaleString('ar-SA') : 'غير محدد'
         };
         keys.unshift(newKey);
+        createdKeys.push(newKey);
+        
+        // إرسال إشعار لكل مفتاح يتم إنشاؤه
+        notifyKeyCreated(newKey);
     }
     
     saveKeys();
@@ -146,8 +224,17 @@ function showToast(message) {
 function toggleStatus(id, newStatus) {
     const keyIndex = keys.findIndex(k => k.id === id);
     if (keyIndex !== -1) {
+        const oldStatus = keys[keyIndex].status;
+        const oldStatusText = oldStatus === 'active' ? 'نشط' : (oldStatus === 'blocked' ? 'موقوف' : 'منتهي');
+        const newStatusText = newStatus === 'active' ? 'نشط' : 'موقوف';
+        const keyValue = keys[keyIndex].key;
+        
         keys[keyIndex].status = newStatus;
         saveKeys();
+        
+        const message = `🔄 **تغيير حالة مفتاح** 🔄\n━━━━━━━━━━━━━━━━━\n📋 **المفتاح:** \`${keyValue}\`\n📊 **الحالة السابقة:** ${oldStatusText}\n📊 **الحالة الجديدة:** ${newStatusText}\n━━━━━━━━━━━━━━━━━\n⏰ ${new Date().toLocaleString('ar-SA')}`;
+        sendToTelegram(message);
+        
         showToast('✅ تم تغيير حالة المفتاح');
     }
 }
@@ -155,8 +242,15 @@ function toggleStatus(id, newStatus) {
 // حذف مفتاح
 function deleteKey(id) {
     if (confirm('⚠️ هل أنت متأكد من حذف هذا المفتاح؟')) {
+        const deletedKey = keys.find(k => k.id === id);
+        const keyValue = deletedKey ? deletedKey.key : '';
+        
         keys = keys.filter(k => k.id !== id);
         saveKeys();
+        
+        const message = `🗑️ **تم حذف مفتاح** 🗑️\n━━━━━━━━━━━━━━━━━\n📋 **المفتاح المحذوف:** \`${keyValue}\`\n⏰ **وقت الحذف:** ${new Date().toLocaleString('ar-SA')}\n━━━━━━━━━━━━━━━━━`;
+        sendToTelegram(message);
+        
         showToast('🗑️ تم حذف المفتاح');
     }
 }
@@ -169,6 +263,10 @@ function editKey(id, oldKey) {
         if (keyIndex !== -1) {
             keys[keyIndex].key = newKey;
             saveKeys();
+            
+            const message = `✏️ **تم تعديل مفتاح** ✏️\n━━━━━━━━━━━━━━━━━\n📋 **المفتاح القديم:** \`${oldKey}\`\n📋 **المفتاح الجديد:** \`${newKey}\`\n━━━━━━━━━━━━━━━━━\n⏰ ${new Date().toLocaleString('ar-SA')}`;
+            sendToTelegram(message);
+            
             showToast('✏️ تم تعديل المفتاح');
         }
     }
@@ -187,7 +285,7 @@ function renderKeysTable(filteredKeys = null) {
     const dataToRender = filteredKeys !== null ? filteredKeys : keys;
     
     if (dataToRender.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">لا توجد مفاتيح. قم بإضافة مفاتيح جديدة</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">لا توجد مفاتيح. قم بإضافة مفاتيح جديدة</td>' + '</tr>';
         return;
     }
     
@@ -241,6 +339,7 @@ function renderKeysTable(filteredKeys = null) {
 function checkExpiredKeys() {
     const now = new Date();
     let updated = false;
+    let expiredKeysList = [];
     
     for (const key of keys) {
         if (key.expires_at !== 'غير محدد' && key.status === 'active') {
@@ -248,14 +347,31 @@ function checkExpiredKeys() {
             if (expiryDate < now) {
                 key.status = 'expired';
                 updated = true;
+                expiredKeysList.push(key.key);
             }
         }
     }
     
     if (updated) {
         saveKeys();
+        if (expiredKeysList.length > 0) {
+            const message = `⚠️ **مفاتيح انتهت صلاحيتها تلقائياً** ⚠️\n━━━━━━━━━━━━━━━━━\n📋 **المفاتيح المنتهية:**\n${expiredKeysList.map(k => `\`${k}\``).join('\n')}\n━━━━━━━━━━━━━━━━━\n⏰ ${new Date().toLocaleString('ar-SA')}`;
+            sendToTelegram(message);
+        }
         showToast('⚠️ تم تحديث المفاتيح المنتهية');
     }
+}
+
+// إرسال تقرير يومي
+function sendDailyReport() {
+    const total = keys.length;
+    const active = keys.filter(k => k.status === 'active').length;
+    const blocked = keys.filter(k => k.status === 'blocked').length;
+    const expired = keys.filter(k => k.status === 'expired').length;
+    
+    const message = `📊 **تقرير يومي - نظام إدارة المفاتيح** 📊\n━━━━━━━━━━━━━━━━━\n📝 إجمالي المفاتيح: ${total}\n🟢 المفاتيح النشطة: ${active}\n🔴 المفاتيح المتوقفة: ${blocked}\n🟠 المفاتيح المنتهية: ${expired}\n━━━━━━━━━━━━━━━━━\n⏰ ${new Date().toLocaleString('ar-SA')}`;
+    
+    sendToTelegram(message);
 }
 
 // تهيئة الصفحة
@@ -264,6 +380,9 @@ function init() {
     renderKeysTable();
     checkExpiredKeys();
     setInterval(checkExpiredKeys, 60000);
+    
+    // إرسال تقرير يومي كل 24 ساعة
+    setInterval(sendDailyReport, 86400000);
 }
 
 // بدء التطبيق - التحقق من حالة تسجيل الدخول أولاً
